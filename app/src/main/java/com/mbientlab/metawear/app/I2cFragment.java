@@ -48,7 +48,7 @@ import com.mbientlab.metawear.module.I2C;
 /**
  * Created by etsai on 3/1/2016.
  */
-public class I2CFragment extends ModuleFragmentBase {
+public class I2cFragment extends ModuleFragmentBase {
     public static String arrayToHexString(byte[] value) {
         if (value.length == 0) {
             return "";
@@ -81,7 +81,7 @@ public class I2CFragment extends ModuleFragmentBase {
 
     private I2C i2cModule;
 
-    public I2CFragment() {
+    public I2cFragment() {
         super(R.string.navigation_fragment_i2c);
     }
 

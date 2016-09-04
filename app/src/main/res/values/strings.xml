@@ -30,7 +30,7 @@
   -->
 
 <resources>
-  <string name="app_name">MetaWear</string>
+  <string name="app_name">BarTender</string>
 
   <string name="action_reset">Reset</string>
   <string name="action_manual_dfu">Manual DFU</string>
