@@ -32,6 +32,7 @@
 package com.mbientlab.metawear.app;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -42,8 +43,11 @@ import com.github.mikephil.charting.components.YAxis;
 import com.mbientlab.metawear.AsyncOperation;
 import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
+import com.mbientlab.metawear.app.dispatch.Bundling;
+import com.mbientlab.metawear.app.dispatch.SensorConfiguration;
 import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
+import com.mbientlab.metawear.data.CartesianFloat;
 import com.mbientlab.metawear.module.Accelerometer;
 import com.mbientlab.metawear.module.Bma255Accelerometer;
 import com.mbientlab.metawear.module.Bmi160Accelerometer;
@@ -61,9 +65,11 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     private Accelerometer accelModule= null;
     private int rangeIndex= 0;
 
+    private SensorConfiguration sensorConfiguration;
     public AccelerometerFragment() {
         super("acceleration", R.layout.fragment_sensor_config_spinner,
                 R.string.navigation_fragment_accelerometer, STREAM_KEY, -INITIAL_RANGE, INITIAL_RANGE);
+        this.sensorConfiguration = new SensorConfiguration();
     }
 
     @Override
@@ -72,6 +78,9 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
 
         ((TextView) view.findViewById(R.id.config_option_title)).setText(R.string.config_name_acc_range);
 
+        this.sensorConfiguration.setIndex(0);
+        this.sensorConfiguration.setSensorType(0);
+        this.sensorConfiguration.setOscParam("Acc:");
         accRangeSelection= (Spinner) view.findViewById(R.id.config_option_spinner);
         accRangeSelection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -128,6 +137,9 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
             public void success(RouteManager result) {
                 accelModule.enableAxisSampling();
                 accelModule.start();
+                sensorConfiguration.setSend(true);
+                Log.i("ACC Value %s", dataStreamManager.toString());
+
             }
         });
     }

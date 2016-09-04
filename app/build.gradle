@@ -58,4 +58,6 @@ dependencies {
     compile 'no.nordicsemi.android:dfu:0.6.2'
     compile 'com.android.support:appcompat-v7:23.2.0'
     compile 'com.android.support:design:23.2.0'
+    compile 'com.illposed.osc:javaosc-core:0.3'
+    compile 'com.github.SensorApps:Common:75898832fe'
 }
