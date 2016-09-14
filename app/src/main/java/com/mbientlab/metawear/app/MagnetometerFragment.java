@@ -43,13 +43,13 @@ import com.mbientlab.metawear.module.Bmm150Magnetometer.PowerPreset;
  */
 public class MagnetometerFragment extends ThreeAxisChartFragment {
     private static final float B_FIELD_RANGE= 250.f, MAG_ODR= 10.f;
-    private static final String STREAM_KEY= "b_field_stream";
+    private static final String MAGSTREAM_KEY = "b_field_stream";
 
     private Bmm150Magnetometer magModule= null;
 
     public MagnetometerFragment() {
         super("field", R.layout.fragment_sensor,R.string.navigation_fragment_magnetometer,
-                STREAM_KEY, -B_FIELD_RANGE, B_FIELD_RANGE, MAG_ODR);
+                MAGSTREAM_KEY, -B_FIELD_RANGE, B_FIELD_RANGE, MAG_ODR);
     }
 
     @Override
@@ -66,9 +66,9 @@ public class MagnetometerFragment extends ThreeAxisChartFragment {
     protected void setup() {
         magModule.setPowerPrsest(PowerPreset.LOW_POWER);
 
-        AsyncOperation<RouteManager> routeManagerResult= magModule.routeData().fromBField().stream(STREAM_KEY).commit();
-        routeManagerResult.onComplete(dataStreamManager);
-        routeManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+        AsyncOperation<RouteManager> magrouteManagerResult= magModule.routeData().fromBField().stream(MAGSTREAM_KEY).commit();
+        magrouteManagerResult.onComplete(dataStreamManager);
+        magrouteManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
             @Override
             public void success(RouteManager result) {
                 magModule.enableBFieldSampling();

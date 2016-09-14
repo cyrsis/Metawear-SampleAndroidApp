@@ -30,6 +30,7 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -61,9 +62,12 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import com.mbientlab.metawear.AsyncOperation;
 import com.mbientlab.metawear.MetaWearBleService;
@@ -74,6 +78,7 @@ import com.mbientlab.metawear.app.ModuleFragmentBase.FragmentBus;
 import com.mbientlab.metawear.module.Debug;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -93,6 +98,12 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
             DFU_PROGRESS_FRAGMENT_TAG= "com.mbientlab.metawear.app.NavigationActivity.DFU_PROGRESS_FRAGMENT_TAG";
     private final static Map<Integer, Class<? extends ModuleFragmentBase>> FRAGMENT_CLASSES;
     private final static Map<String, String> EXTENSION_TO_APP_TYPE;
+
+    private String ipAddress = "127.0.0.1";
+    private int port = 8000;
+
+    private final static String NETWORK_SETTINGS_FILE = "qosc_network.cfg";
+    private final static String OSC_SETTINGS_FILE = "qosc_osc.cfg";
 
     static {
         Map<Integer, Class<? extends ModuleFragmentBase>> tempMap= new LinkedHashMap<>();
@@ -214,6 +225,7 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
     private Uri fileStreamUri;
     private String fileName;
     private Intent dfuParameters= null;
+    private final static int NETWORK_DIALOG = 2;
 
     private final ConnectionStateHandler connectionHandler= new MetaWearBoard.ConnectionStateHandler() {
         @Override
@@ -522,11 +534,59 @@ public class NavigationActivity extends AppCompatActivity implements NavigationV
                     startContentSelectionIntent();
                 }
                 break;
+            case R.id.network_menu:
+                createNetworkDialog();
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
+    private Dialog createNetworkDialog() {
+        LayoutInflater inflator = LayoutInflater.from(this);
+        final View networkView = inflator.inflate(R.layout.dialog_network_settings, null);
+        EditText etNetworkIP = (EditText) networkView.findViewById(R.id.etNetworkIP);
+        etNetworkIP.setText(ipAddress);
+
+        EditText etNetworkPort = (EditText) networkView.findViewById(R.id.etNetworkPort);
+        etNetworkPort.setText(Integer.toString(port));
+
+        final android.app.AlertDialog alert = new android.app.AlertDialog.Builder(this).create();
+        alert.setView(networkView);
+        alert.setTitle("Network Settings");
+        alert.setButton(Dialog.BUTTON_POSITIVE, "Save", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                EditText etNetworkIP = (EditText) alert.findViewById(R.id.etNetworkIP);
+                ipAddress = etNetworkIP.getText().toString();
+
+                EditText etNetworkPort = (EditText) alert.findViewById(R.id.etNetworkPort);
+                port = Integer.parseInt(etNetworkPort.getText().toString());
+
+                saveNetworkSettinsIntoFile();
+
+            }
+
+            private void saveNetworkSettinsIntoFile() {
+                try {
+                    try {
+                        FileOutputStream fos = openFileOutput(NETWORK_SETTINGS_FILE, Context.MODE_PRIVATE);
+
+                        String data = ipAddress + "#" + port;
+                        fos.write(data.getBytes());
+                        fos.close();
+                    }
+                    catch(Exception exp) {
+                      //  Toast.makeText(this, "Could Not Update SCAuth File", Toast.LENGTH_SHORT).show();
+                        exp.printStackTrace();
+                    }
+                }
+                catch(Exception exp) {
+                    //Toast.makeText(this, "Error Saving Network Settings", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        return alert;
+    }
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.

@@ -50,16 +50,16 @@ import com.mbientlab.metawear.module.Gyro;
  * Created by etsai on 8/19/2015.
  */
 public class GyroFragment extends ThreeAxisChartFragment {
-    private static final float[] AVAILABLE_RANGES= {125.f, 250.f, 500.f, 1000.f, 2000.f};
-    private static final float INITIAL_RANGE= 125.f, GYR_ODR= 25.f;
-    private static final String STREAM_KEY= "gyro_stream";
+    private static final float[] GYRAVAILABLE_RANGES= {125.f, 250.f, 500.f, 1000.f, 2000.f};
+    private static final float GYRINITIAL_RANGE= 125.f, GYR_ODR= 25.f;
+    private static final String GYR_STREAM_KEY= "gyro_stream";
 
     private Gyro gyroModule= null;
-    private int rangeIndex= 0;
+    private int GYRrangeIndex = 0;
 
     public GyroFragment() {
         super("rotation", R.layout.fragment_sensor_config_spinner,
-                R.string.navigation_fragment_gyro, STREAM_KEY, -INITIAL_RANGE, INITIAL_RANGE, GYR_ODR);
+                R.string.navigation_fragment_gyro, GYR_STREAM_KEY, -GYRINITIAL_RANGE, GYRINITIAL_RANGE, GYR_ODR);
     }
 
     @Override
@@ -84,9 +84,9 @@ public class GyroFragment extends ThreeAxisChartFragment {
         rotationRangeSelection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                rangeIndex = position;
-                leftAxis.setAxisMaxValue(AVAILABLE_RANGES[rangeIndex]);
-                leftAxis.setAxisMinValue(-AVAILABLE_RANGES[rangeIndex]);
+                GYRrangeIndex = position;
+                leftAxis.setAxisMaxValue(GYRAVAILABLE_RANGES[GYRrangeIndex]);
+                leftAxis.setAxisMinValue(-GYRAVAILABLE_RANGES[GYRrangeIndex]);
 
                 refreshChart(false);
             }
@@ -99,15 +99,15 @@ public class GyroFragment extends ThreeAxisChartFragment {
         ArrayAdapter<CharSequence> spinnerAdapter= ArrayAdapter.createFromResource(getContext(), R.array.values_gyro_range, android.R.layout.simple_spinner_item);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         rotationRangeSelection.setAdapter(spinnerAdapter);
-        rotationRangeSelection.setSelection(rangeIndex);
+        rotationRangeSelection.setSelection(GYRrangeIndex);
     }
 
     @Override
     protected void setup() {
         gyroModule.setOutputDataRate(GYR_ODR);
-        gyroModule.setAngularRateRange(AVAILABLE_RANGES[rangeIndex]);
+        gyroModule.setAngularRateRange(GYRAVAILABLE_RANGES[GYRrangeIndex]);
 
-        AsyncOperation<RouteManager> routeManagerResult= gyroModule.routeData().fromAxes().stream(STREAM_KEY).commit();
+        AsyncOperation<RouteManager> routeManagerResult= gyroModule.routeData().fromAxes().stream(GYR_STREAM_KEY).commit();
         routeManagerResult.onComplete(dataStreamManager);
         routeManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
             @Override

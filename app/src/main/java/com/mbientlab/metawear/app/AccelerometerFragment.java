@@ -41,6 +41,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
 import com.mbientlab.metawear.AsyncOperation;
@@ -53,10 +55,16 @@ import com.mbientlab.metawear.data.CartesianFloat;
 import com.mbientlab.metawear.module.Accelerometer;
 import com.mbientlab.metawear.module.Barometer;
 import com.mbientlab.metawear.module.Bma255Accelerometer;
+import com.mbientlab.metawear.module.Bme280Barometer;
 import com.mbientlab.metawear.module.Bmi160Accelerometer;
+import com.mbientlab.metawear.module.Bmm150Magnetometer;
+import com.mbientlab.metawear.module.Bmp280Barometer;
+import com.mbientlab.metawear.module.Gyro;
 import com.mbientlab.metawear.module.Mma8452qAccelerometer;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Locale;
 
 /**
  * Created by etsai on 8/19/2015.
@@ -78,7 +86,17 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     private static String PRESSURE_STREAM_KEY= "pressure_stream", ALTITUDE_STREAM_KEY= "altitude";
 
     private Barometer barometerModule;
+    private RouteManager altitudeRouteManager= null;
+    private final ArrayList<Entry> altitudeData= new ArrayList<>(), pressureData= new ArrayList<>();
 
+    private static final String GYR_STREAM_KEY= "gyro_stream";
+    private Gyro gyroModule= null;
+    private static final float[] GYRAVAILABLE_RANGES= {125.f, 250.f, 500.f, 1000.f, 2000.f};
+    private static final float GYRINITIAL_RANGE= 125.f, GYR_ODR= 25.f;
+
+    private static final float B_FIELD_RANGE= 250.f, MAG_ODR= 10.f;
+    private static final String MAGSTREAM_KEY = "b_field_stream";
+    private Bmm150Magnetometer magModule= null;
 
     public AccelerometerFragment() {
         super("acceleration", R.layout.fragment_sensor_config_spinner,
@@ -122,7 +140,8 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     protected void boardReady() throws UnsupportedModuleException{
         accelModule= mwBoard.getModule(Accelerometer.class);
         barometerModule= mwBoard.getModule(Barometer.class);
-
+        gyroModule= mwBoard.getModule(Gyro.class);
+        magModule= mwBoard.getModule(Bmm150Magnetometer.class);
         fillRangeAdapter();
         initializeOSC();
     }
@@ -158,7 +177,7 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
         }
 
         AsyncOperation<RouteManager> routeManagerResult = accelModule.routeData().fromAxes().stream(STREAM_KEY).commit();
-        routeManagerResult.onComplete(dataStreamManager);
+        //routeManagerResult.onComplete(dataStreamManager);
         routeManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
             @Override
             public void success(RouteManager result) {
@@ -176,6 +195,117 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
                 accelModule.start();
             }
         });
+
+        if (barometerModule instanceof Bmp280Barometer) {
+            ((Bmp280Barometer) barometerModule).configure()
+                    .setPressureOversampling(Bmp280Barometer.OversamplingMode.ULTRA_HIGH)
+                    .setFilterMode(Bmp280Barometer.FilterMode.OFF)
+                    .setStandbyTime(Bmp280Barometer.StandbyTime.TIME_0_5)
+                    .commit();
+            ((Bmp280Barometer) barometerModule).enableAltitudeSampling();
+        } else if (barometerModule instanceof Bme280Barometer) {
+            ((Bme280Barometer) barometerModule).configure()
+                    .setPressureOversampling(Bmp280Barometer.OversamplingMode.ULTRA_HIGH)
+                    .setFilterMode(Bmp280Barometer.FilterMode.OFF)
+                    .setStandbyTime(Bme280Barometer.StandbyTime.TIME_0_5)
+                    .commit();
+            ((Bme280Barometer) barometerModule).enableAltitudeSampling();
+        }
+        barometerModule.routeData().fromPressure().stream(PRESSURE_STREAM_KEY).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        streamRouteManager= result;
+                        result.subscribe(PRESSURE_STREAM_KEY, new RouteManager.MessageHandler() {
+                            @Override
+                            public void process(Message msg) {
+                                Log.i("Baro ", String.format(" //Pressure=// %.3fPa",
+                                        msg.getData(Float.class)));
+                                sendOSC("/Bar Sample/"+msg.getData(Float.class).toString());
+                                // sendOSC("/Acc HF Sample/"+msg.getData(CartesianFloat.class).toString());
+                            }
+                        });
+                        barometerModule.start();
+                    }
+                });
+        barometerModule.routeData().fromAltitude().stream(ALTITUDE_STREAM_KEY).commit()
+                .onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+                    @Override
+                    public void success(RouteManager result) {
+                        altitudeRouteManager= result;
+                        result.subscribe(ALTITUDE_STREAM_KEY, new BarometerMessageHandler(altitudeData, 1));
+
+                        barometerModule.start();
+                    }
+                });
+
+        gyroModule.setOutputDataRate(GYR_ODR);
+        gyroModule.setAngularRateRange(GYRAVAILABLE_RANGES[rangeIndex]);
+
+        AsyncOperation<RouteManager> gyrrouteManagerResult= gyroModule.routeData().fromAxes().stream(GYR_STREAM_KEY).commit();
+        //routeManagerResult.onComplete(dataStreamManager);
+        gyrrouteManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+            @Override
+            public void success(RouteManager result) {
+                result.subscribe(GYR_STREAM_KEY, new RouteManager.MessageHandler() {
+                    @Override
+                    public void process(Message msg) {
+
+                        final CartesianFloat  spinData= msg.getData(CartesianFloat.class);
+                        Log.i("GYO" ,spinData.toString());
+                        sendOSC("/GYO /"+spinData.toString());
+                    }
+                });
+                gyroModule.start();
+            }
+        });
+
+
+        magModule.setPowerPrsest(Bmm150Magnetometer.PowerPreset.LOW_POWER);
+        magModule.enableBFieldSampling();
+
+        AsyncOperation<RouteManager> magrouteManagerResult= magModule.routeData().fromBField().stream(MAGSTREAM_KEY).commit();
+       // magrouteManagerResult.onComplete(dataStreamManager);
+        magrouteManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
+            @Override
+            public void success(RouteManager result) {
+                result.subscribe(MAGSTREAM_KEY, new RouteManager.MessageHandler(){
+                    @Override
+                    public void process(Message msg) {
+
+                        final CartesianFloat bField = msg.getData(CartesianFloat.class);
+                        Log.i(" MAG"  , bField.toString());
+                        sendOSC("/MAG /"+bField.toString());
+                    }
+                });
+                magModule.enableBFieldSampling();
+                magModule.start();
+            }
+        });
+
+
+
+    }
+
+    private class BarometerMessageHandler implements RouteManager.MessageHandler {
+        private final ArrayList<Entry> dataEntries;
+        private final int setIndex;
+
+        public BarometerMessageHandler(ArrayList<Entry> dataEntries, int setIndex) {
+            this.dataEntries= dataEntries;
+            this.setIndex= setIndex;
+        }
+        @Override
+        public void process(Message message) {
+            final Float pressureValue = message.getData(Float.class);
+
+            LineData data = chart.getData();
+            if (dataEntries.size() >= sampleCount) {
+                data.addXValue(String.format(Locale.US, "%.2f", sampleCount * LIGHT_SAMPLE_PERIOD));
+                sampleCount++;
+            }
+            data.addEntry(new Entry(pressureValue, sampleCount), setIndex);
+        }
     }
     public void sendOSC(String message) {
         try {
@@ -189,6 +319,12 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     protected void clean() {
         accelModule.stop();
         accelModule.disableAxisSampling();
+
+        barometerModule.stop();
+        gyroModule.stop();
+
+        magModule.stop();
+        magModule.disableBFieldSampling();
     }
 
     private void fillRangeAdapter() {

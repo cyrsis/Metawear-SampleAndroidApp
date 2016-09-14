@@ -126,6 +126,7 @@ public class BarometerFragment extends SensorFragment {
                     public void success(RouteManager result) {
                         streamRouteManager= result;
                         result.subscribe(PRESSURE_STREAM_KEY, new BarometerMessageHandler(pressureData, 0));
+
                     }
                 });
         barometerModule.routeData().fromAltitude().stream(ALTITUDE_STREAM_KEY).commit()
