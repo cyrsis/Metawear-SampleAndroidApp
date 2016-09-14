@@ -332,7 +332,6 @@
             style="?android:attr/buttonBarButtonStyle"
             android:text="@string/label_led_off"
             android:id="@+id/led_stop" />
-        <include layout="@layout/component_sampling_control" />
-        <include layout="@layout/layout_two_button" />
+
     </LinearLayout>
 </ScrollView>
