@@ -32,22 +32,31 @@
 package com.mbientlab.metawear.app;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.components.YAxis;
+import com.illposed.osc.OSCMessage;
+import com.illposed.osc.OSCPortOut;
 import com.mbientlab.metawear.AsyncOperation;
+import com.mbientlab.metawear.Message;
 import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.app.help.HelpOption;
 import com.mbientlab.metawear.app.help.HelpOptionAdapter;
+import com.mbientlab.metawear.data.CartesianFloat;
 import com.mbientlab.metawear.module.Accelerometer;
+import com.mbientlab.metawear.module.Barometer;
 import com.mbientlab.metawear.module.Bma255Accelerometer;
 import com.mbientlab.metawear.module.Bmi160Accelerometer;
 import com.mbientlab.metawear.module.Mma8452qAccelerometer;
+
+import java.net.InetAddress;
 
 /**
  * Created by etsai on 8/19/2015.
@@ -60,6 +69,16 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     private Spinner accRangeSelection;
     private Accelerometer accelModule= null;
     private int rangeIndex= 0;
+
+    private String ipAddress = "192.168.41.35";
+    private int port = 7474;
+    private OSCPortOut oscPortOut = null;
+
+    private static final float BAROMETER_SAMPLE_FREQ = 26.32f, LIGHT_SAMPLE_PERIOD= 1 / BAROMETER_SAMPLE_FREQ;
+    private static String PRESSURE_STREAM_KEY= "pressure_stream", ALTITUDE_STREAM_KEY= "altitude";
+
+    private Barometer barometerModule;
+
 
     public AccelerometerFragment() {
         super("acceleration", R.layout.fragment_sensor_config_spinner,
@@ -102,8 +121,25 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     @Override
     protected void boardReady() throws UnsupportedModuleException{
         accelModule= mwBoard.getModule(Accelerometer.class);
+        barometerModule= mwBoard.getModule(Barometer.class);
 
         fillRangeAdapter();
+        initializeOSC();
+    }
+
+    private void initializeOSC() {
+        try {
+
+            if(oscPortOut != null) {
+                oscPortOut.close();
+            }
+
+            oscPortOut = new OSCPortOut(InetAddress.getByName(ipAddress), port);
+        }
+        catch(Exception exp) {
+            Log.i("OSC Port Error" ,"Cannt make the port");
+            oscPortOut = null;
+        }
     }
 
     @Override
@@ -113,7 +149,7 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
 
     @Override
     protected void setup() {
-        samplePeriod= 1 / accelModule.setOutputDataRate(ACC_FREQ);
+        samplePeriod = 1 / accelModule.setOutputDataRate(ACC_FREQ);
 
         if (accelModule instanceof Bmi160Accelerometer || accelModule instanceof Bma255Accelerometer) {
             accelModule.setAxisSamplingRange(BMI160_RANGES[rangeIndex]);
@@ -121,15 +157,32 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
             accelModule.setAxisSamplingRange(MMA845Q_RANGES[rangeIndex]);
         }
 
-        AsyncOperation<RouteManager> routeManagerResult= accelModule.routeData().fromAxes().stream(STREAM_KEY).commit();
+        AsyncOperation<RouteManager> routeManagerResult = accelModule.routeData().fromAxes().stream(STREAM_KEY).commit();
         routeManagerResult.onComplete(dataStreamManager);
         routeManagerResult.onComplete(new AsyncOperation.CompletionHandler<RouteManager>() {
             @Override
             public void success(RouteManager result) {
+                result.subscribe(STREAM_KEY, new RouteManager.MessageHandler() {
+                    @Override
+                    public void process(Message msg) {
+                        Log.i("test", "high freq: " + msg.getData(CartesianFloat.class));
+
+                        sendOSC("/Acc HF Sample/"+msg.getData(CartesianFloat.class).toString());
+
+                    }
+                });
+                accelModule.setOutputDataRate(200.f);
                 accelModule.enableAxisSampling();
                 accelModule.start();
             }
         });
+    }
+    public void sendOSC(String message) {
+        try {
+            new AsyncSendOSCTask(this,this.oscPortOut).execute(new OSCMessage(message));
+        } catch (Exception exp) {
+            Log.i("test", "Cannt send Message "+ exp);
+        }
     }
 
     @Override
