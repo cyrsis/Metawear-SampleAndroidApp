@@ -78,7 +78,7 @@ public class AccelerometerFragment extends ThreeAxisChartFragment {
     private Accelerometer accelModule= null;
     private int rangeIndex= 0;
 
-    private String ipAddress = "192.168.1.105";
+    private String ipAddress = "192.168.100.137";
     private int port = 7474;
     private OSCPortOut oscPortOut = null;
 
