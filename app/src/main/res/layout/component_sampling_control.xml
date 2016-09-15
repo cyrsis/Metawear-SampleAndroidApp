@@ -37,3 +37,4 @@
     android:textAppearance="?android:attr/textAppearanceMedium"
     android:id="@+id/sample_control"
     android:checked="false" />
+
